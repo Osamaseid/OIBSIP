@@ -48,7 +48,7 @@ def main():
             command = listen()
 
             if 'hello' in command:
-                speak("Hello there!")
+                speak("Hello!")
             elif 'time' in command:
                 time = datetime.datetime.now().strftime('%I:%M %p')
                 speak(f"The current time is {time}")

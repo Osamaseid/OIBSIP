@@ -1,12 +1,12 @@
 import socket
 import threading
 
-nickname = input("Choose your nickname: ")
+nickname = input("Choose a nickname: ")
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(('127.0.0.1', 55555)) 
+client.connect(('127.0.0.1', 55555))
 
-def receive_messages():
+def receive():
     while True:
         try:
             message = client.recv(1024).decode('utf-8')
@@ -15,17 +15,17 @@ def receive_messages():
             else:
                 print(message)
         except:
-            print("An error occurred!")
+            print("An error occurred! Disconnecting...")
             client.close()
             break
 
-def send_messages():
+def send():
     while True:
-        message = f'{nickname}: {input("")}'
-        client.send(message.encode('utf-8'))
+        message = input()
+        client.send(f'{nickname}: {message}'.encode('utf-8'))
 
-receive_thread = threading.Thread(target=receive_messages)
+receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
-send_thread = threading.Thread(target=send_messages)
+send_thread = threading.Thread(target=send)
 send_thread.start()

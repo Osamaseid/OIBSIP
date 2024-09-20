@@ -4,29 +4,39 @@ import pywhatkit
 import datetime
 import pyautogui
 import webbrowser
+import logging
+import tkinter as tk
+import threading
+
+logging.basicConfig(level=logging.INFO)
 
 recognizer = sr.Recognizer()
 tts_engine = pyttsx3.init()
+tts_lock = threading.Lock()
 
 def speak(text):
-    tts_engine.say(text)
-    tts_engine.runAndWait()
+    with tts_lock:  
+        tts_engine.say(text)
+        tts_engine.runAndWait()
 
 def listen():
     with sr.Microphone() as source:
-        print("Listening...")
+        logging.info("Listening...")
         recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-    try:
-        command = recognizer.recognize_google(audio)
-        print(f"User said: {command}")
-        return command.lower()
-    except sr.UnknownValueError:
-        print("Sorry, I didn't get that.")
-        return ""
-    except sr.RequestError:
-        print("Sorry, my speech service is down.")
-        return ""
+        try:
+            audio = recognizer.listen(source, timeout=3)
+            command = recognizer.recognize_google(audio)
+            logging.info(f"User said: {command}")
+            return command.lower()
+        except sr.UnknownValueError:
+            logging.warning("Sorry, I didn't get that.")
+            return ""
+        except sr.RequestError:
+            logging.error("Speech service is down.")
+            return ""
+        except Exception as e:
+            logging.error(f"Listening error: {e}")
+            return ""
 
 def take_screenshot():
     screenshot = pyautogui.screenshot()
@@ -41,23 +51,21 @@ def search_google(query):
     pywhatkit.search(query)
     speak(f"Searching Google for {query}")
 
-def main():
-    speak("Hello osama! How can I assist you today?")
-    try:
-        while True:
-            command = listen()
-
-            if 'hello' in command:
-                speak("Hello!")
-            elif 'time' in command:
-                time = datetime.datetime.now().strftime('%I:%M %p')
-                speak(f"The current time is {time}")
-            elif 'date' in command:
-                date = datetime.datetime.now().strftime('%Y-%m-%d')
-                speak(f"Today's date is {date}")
-            elif 'search' in command:
-                speak("What do you want to search for?")
-                search_query = listen()
+def handle_command():
+    command = listen()
+    if command:
+        if 'hello' in command:
+            speak("Hello Osama!")
+        elif 'time' in command:
+            time = datetime.datetime.now().strftime('%I:%M %p')
+            speak(f"The current time is {time}")
+        elif 'date' in command:
+            date = datetime.datetime.now().strftime('%Y-%m-%d')
+            speak(f"Today's date is {date}")
+        elif 'search' in command:
+            speak("What do you want to search for?")
+            search_query = listen()
+            if search_query:
                 if 'youtube' in search_query:
                     speak("What do you want to search on YouTube?")
                     query = listen()
@@ -65,19 +73,24 @@ def main():
                         search_youtube(query)
                 else:
                     search_google(search_query)
-            elif 'screenshot' in command:
-                take_screenshot()
-            elif 'exit' in command or 'quit' in command:
-                speak("Goodbye osama!")
-                break
-    except KeyboardInterrupt:
-        print("\nProcess interrupted by user. Exiting...")
-        speak("Goodbye!")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        speak("An error occurred. Please try again.")
-    finally:
-        print("Exiting program.")
+        elif 'screenshot' in command:
+            take_screenshot()
+        elif 'exit' in command or 'quit' in command:
+            speak("Goodbye!")
+            root.quit()
 
-if __name__ == "__main__":
-    main()
+def start_listening():
+    while True:
+        handle_command()
+
+def on_speak_button_click():
+    threading.Thread(target=start_listening, daemon=True).start()
+
+root = tk.Tk()
+root.title("Voice Assistant")
+root.geometry("300x200")
+
+btn = tk.Button(root, text="Speak", command=on_speak_button_click, height=2, width=15, bg="blue", fg="white")
+btn.pack(pady=20)
+
+root.mainloop()
